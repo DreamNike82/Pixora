@@ -85,6 +85,9 @@ export default function SettingsPage() {
               <input type="checkbox" checked={form.watermarkEnabled ?? true} onChange={(e) => setForm({ ...form, watermarkEnabled: e.target.checked })} className="h-4 w-4 accent-[#71142a]" />
               Накладати водяний знак на фото
             </label>
+            <p className="text-xs leading-5 text-[#766961]">
+              Знак накладає сервер під час обробки фото. Завантажте зображення у блоці «Водяний знак», збережіть профіль, а для вже завантажених фото натисніть «Накласти водяний знак» на сторінці галереї.
+            </p>
             {message && <p role="alert" className={`rounded-xl px-4 py-3 text-sm ${message.ok ? "bg-[#2f6b3f]/10 text-[#2f6b3f]" : "bg-[#71142a]/10 text-[#71142a]"}`}>{message.text}</p>}
             <button type="submit" disabled={saving || loading} className="button bg-[#561124] text-white disabled:opacity-60">{saving ? "Зберігаємо…" : "Зберегти"}</button>
           </form>

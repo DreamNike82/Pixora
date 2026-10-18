@@ -33,6 +33,8 @@ export default function GalleryPage() {
   const [uploadSection, setUploadSection] = useState(""); // розділ, у який потрапляють нові фото
   const [filter, setFilter] = useState("all");
   const [newSection, setNewSection] = useState("");
+  const [info, setInfo] = useState<string | null>(null);
+  const [processing, setProcessing] = useState(false);
   const [notice, setNotice] = useState<string | null>(null); // помилки показуємо на сторінці, а не через alert
   const [selectMode, setSelectMode] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -144,6 +146,25 @@ export default function GalleryPage() {
     }
   };
 
+  // POST .../photos/process { photoIds } — сервер накладає водяний знак (зі знака в профілі, якщо watermarkEnabled) і робить ресайз
+  const applyWatermark = async () => {
+    const ids = selectMode && selected.size > 0 ? [...selected] : photos.map((p) => p.id);
+    if (ids.length === 0) return;
+    setProcessing(true);
+    setInfo(null);
+    setNotice(null);
+    try {
+      const job = await photosApi.process(id, ids);
+      setInfo(`Обробку запущено для ${ids.length} фото${job?.status ? ` (${job.status})` : ""}. Оновлюємо галерею…`);
+      setTimeout(load, 3000);
+      setTimeout(load, 10000);
+    } catch (e) {
+      setNotice(`Не вдалося запустити обробку: ${e instanceof Error ? e.message : "невідома помилка"}`);
+    } finally {
+      setProcessing(false);
+    }
+  };
+
   // PATCH /api/admin/galleries/[id] { coverUrl }
   const setCover = async (photo: Photo) => {
     setNotice(null);
@@ -243,6 +264,11 @@ export default function GalleryPage() {
 
       {gallery && (
         <>
+          {info && (
+            <div className="mx-auto mt-8 max-w-[1240px] px-5 sm:px-8">
+              <p role="status" className="rounded-xl bg-[#2f6b3f]/10 px-4 py-3 text-sm text-[#2f6b3f]">{info}</p>
+            </div>
+          )}
           {notice && (
             <div className="mx-auto mt-8 max-w-[1240px] px-5 sm:px-8">
               <p role="alert" className="rounded-xl bg-[#71142a]/10 px-4 py-3 text-sm text-[#71142a]">{notice}</p>
@@ -327,6 +353,9 @@ export default function GalleryPage() {
                     ) : (
                       <button onClick={() => setSelectMode(true)} className="button button-ghost">Вибрати кілька</button>
                     )}
+                    <button onClick={applyWatermark} disabled={processing} className="button button-ghost disabled:opacity-50">
+                      {processing ? "Запускаємо…" : selectMode && selected.size > 0 ? `Накласти водяний знак (${selected.size})` : "Накласти водяний знак"}
+                    </button>
                   </div>
                 </div>
                 {sections.length > 0 && (
@@ -368,7 +397,7 @@ export default function GalleryPage() {
               </div>
             </section>
           )}
-          <SelectionsPanel galleryId={id} />
+          <SelectionsPanel galleryId={id} photos={photos} />
         </>
       )}
 
