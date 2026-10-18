@@ -2,9 +2,16 @@ import { api, downloadArchive } from './client'
 import { normalizePhoto } from './photos'
 import type { Photo } from './photos'
 
-export type GalleryStatus = 'DRAFT' | 'PUBLISHED'
+// Фактичні значення з валідації бекенду (у API_DOCS.md помилково PUBLISHED): DRAFT | ACTIVE | ARCHIVED.
+// ACTIVE = опубліковано, галерея доступна клієнту за посиланням.
+export type GalleryStatus = 'DRAFT' | 'ACTIVE' | 'ARCHIVED'
 
+// Бекенд називає розділ полем title (у документації name); у UI використовуємо name
 export type Section = { id: string; name: string }
+const normalizeSection = (raw: Record<string, any>): Section => ({
+  id: String(raw.id),
+  name: String(raw.title ?? raw.name ?? ''),
+})
 
 /**
  * Налаштування галереї. У API_DOCS.md описане лише `downloadEnabled` (settings: { downloadEnabled }).
@@ -95,12 +102,13 @@ export function buildUpdate(
   }
 }
 
-type RawGallery = Omit<GalleryDetails, 'photos' | 'settings'> & { photos?: any[]; settings?: Record<string, any> }
+type RawGallery = Omit<GalleryDetails, 'photos' | 'settings' | 'sections'> & { photos?: any[]; settings?: Record<string, any>; sections?: any[] }
 
 const normalize = (g: RawGallery): GalleryDetails => ({
   ...g,
   settings: normalizeSettings(g as Record<string, any>),
   photos: (g.photos ?? []).map(normalizePhoto),
+  sections: g.sections?.map(normalizeSection),
 })
 
 // GET .../analytics → { views, downloads, favorites }
@@ -128,8 +136,9 @@ export const galleriesApi = {
   analytics: (id: string) => api<Analytics>(`${base(id)}/analytics`),
   // GET .../download → { downloadUrl } (або сам файл — обидва варіанти обробляє downloadArchive)
   downloadZip: (id: string) => downloadArchive(`${base(id)}/download`, 'gallery.zip'),
+  // POST .../sections — бекенд вимагає поле title (документація помилково пише name)
   createSection: (id: string, name: string) =>
-    api<Section>(`${base(id)}/sections`, { method: 'POST', body: { name } }),
+    api<Record<string, any>>(`${base(id)}/sections`, { method: 'POST', body: { title: name } }).then(normalizeSection),
 
   selections: (id: string) => api<Selection[]>(`${base(id)}/selections`),
   removeSelection: (id: string, selectionId: string) =>
