@@ -31,7 +31,7 @@ export const clientApi = {
       (g): ClientGallery => ({
         ...g,
         settings: normalizeSettings(g as Record<string, any>),
-        photos: (g.photos ?? []).map((p) => ({ ...normalizePhoto(p), favorite: Boolean(p.favorite ?? p.isFavorite) })),
+        photos: (g.photos ?? []).map((p) => ({ ...normalizePhoto(p), favorite: Boolean(p.isSelected ?? p.favorite ?? p.isFavorite) })),
       }),
     ),
 
@@ -42,11 +42,11 @@ export const clientApi = {
   lock: (token: string, pin: string) =>
     api<unknown>(`/api/client/g/${token}/lock`, { method: 'POST', body: { pin } }),
 
-  // PATCH /api/client/g/[accessToken]/photos/[photoId] { favorite }
-  favorite: (token: string, photoId: string, favorite: boolean) =>
+  // PATCH /api/client/g/[accessToken]/photos/[photoId] — бекенд вимагає поле isSelected (у документації помилково favorite)
+  favorite: (token: string, photoId: string, selected: boolean) =>
     api<{ success: boolean }>(`/api/client/g/${token}/photos/${photoId}`, {
       method: 'PATCH',
-      body: { favorite },
+      body: { isSelected: selected },
     }),
 
   submitSelection: (galleryId: string, data: SelectionPayload) =>
