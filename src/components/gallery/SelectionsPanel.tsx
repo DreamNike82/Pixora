@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { galleriesApi } from "../../api/galleries";
 import type { Selection } from "../../api/galleries";
 import Icon from "../Icon";
@@ -11,12 +11,17 @@ export default function SelectionsPanel({ galleryId }: { galleryId: string }) {
   const [error, setError] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  useEffect(() => {
-    galleriesApi
+  const load = useCallback(() => {
+    setError(null);
+    return galleriesApi
       .selections(galleryId)
       .then(setItems)
       .catch((e) => setError(e instanceof Error ? e.message : "Не вдалося завантажити відбори"));
   }, [galleryId]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
 
   const copyForLightroom = async (s: Selection) => {
     try {
@@ -42,7 +47,10 @@ export default function SelectionsPanel({ galleryId }: { galleryId: string }) {
   return (
     <section className="pb-20 sm:pb-24">
       <div className="mx-auto max-w-[1240px] px-5 sm:px-8">
-        <h2 className="font-serif text-3xl text-[#4d1020]">Відбори клієнтів</h2>
+        <div className="flex items-center justify-between gap-4">
+          <h2 className="font-serif text-3xl text-[#4d1020]">Відбори клієнтів</h2>
+          <button onClick={load} className="button border border-[#d8c7bd] text-[#6e605a]">Оновити</button>
+        </div>
         {error && <p role="alert" className="mt-4 rounded-xl bg-[#71142a]/10 px-4 py-3 text-sm text-[#71142a]">{error}</p>}
         {!error && items === null && <p className="mt-4 text-sm text-[#766961]">Завантаження…</p>}
         {items?.length === 0 && <p className="mt-4 text-sm text-[#766961]">Клієнти ще не надсилали відбір.</p>}
@@ -53,7 +61,8 @@ export default function SelectionsPanel({ galleryId }: { galleryId: string }) {
               <li key={s.id} className="flex flex-wrap items-center gap-4 p-5 sm:px-8">
                 <div className="min-w-0 flex-1">
                   <p className="truncate font-serif text-2xl text-[#4d1020]">{s.clientName}</p>
-                  <p className="mt-1 text-xs text-[#766961]">Фото: {s.photoCount} · {statusLabel[s.status] ?? s.status}</p>
+                  <p className="mt-1 text-xs text-[#766961]">Фото: {s.photoCount}{s.status ? ` · ${statusLabel[s.status] ?? s.status}` : ""}{s.clientEmail ? ` · ${s.clientEmail}` : ""}</p>
+                  {s.comment && <p className="mt-2 text-sm text-[#4d3b36]">«{s.comment}»</p>}
                 </div>
                 <button onClick={() => copyForLightroom(s)} className="button border border-[#d8c7bd] text-[#6e605a]">
                   <Icon name={copiedId === s.id ? "check" : "copy"} size={16} /> {copiedId === s.id ? "Скопійовано" : "Для Lightroom"}

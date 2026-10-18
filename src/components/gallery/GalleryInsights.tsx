@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { buildUpdate, galleriesApi } from "../../api/galleries";
 import type { Analytics, GalleryDetails } from "../../api/galleries";
+import { ApiError } from "../../api/client";
 import Icon from "../Icon";
 
 type Props = {
@@ -36,9 +37,23 @@ export default function GalleryInsights({ gallery, published, onChange }: Props)
     setSaving(true);
     setMessage(null);
     try {
-      await galleriesApi.update(gallery.id, buildUpdate(gallery, { downloadEnabled }));
-      onChange({ settings: { ...gallery.settings, downloadEnabled } });
-      setMessage({ ok: true, text: "Налаштування збережено" });
+      const body = buildUpdate(gallery, { downloadEnabled });
+      // Документація: settings.downloadEnabled. На бекенді поле може бути плоским allowDownload — шлемо обидва;
+      // якщо сервер відхилить зайвий ключ, повторюємо лише з документованим форматом.
+      try {
+        await galleriesApi.update(gallery.id, { ...body, allowDownload: downloadEnabled });
+      } catch (e) {
+        if (!(e instanceof ApiError) || e.status !== 400) throw e;
+        await galleriesApi.update(gallery.id, body);
+      }
+      // Перевіряємо, що сервер справді зберіг значення (а не проігнорував поле)
+      const fresh = await galleriesApi.get(gallery.id);
+      onChange({ settings: fresh.settings });
+      if ((fresh.settings.downloadEnabled ?? true) !== downloadEnabled) {
+        setMessage({ ok: false, text: `Сервер прийняв запит, але значення не змінилося. Поля у відповіді сервера: ${fresh.rawKeys?.join(", ")}.` });
+      } else {
+        setMessage({ ok: true, text: "Налаштування збережено" });
+      }
     } catch (e) {
       setMessage({ ok: false, text: e instanceof Error ? e.message : "Не вдалося зберегти налаштування" });
     } finally {
