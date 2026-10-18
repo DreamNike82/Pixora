@@ -12,7 +12,7 @@ export type Photo = {
   rawKeys?: string[] // назви полів з відповіді — лише якщо адресу зображення знайти не вдалося (для діагностики)
 }
 
-const VIEW_KEYS = ['url', 'previewUrl', 'displayUrl', 'webUrl', 'watermarkedUrl', 'optimizedUrl', 'publicUrl', 'imageUrl', 'fileUrl', 'signedUrl', 'src', 'thumbnailUrl', 'thumbUrl', 'thumbnail', 'originalUrl']
+const VIEW_KEYS = ['watermarkedUrl', 'url', 'previewUrl', 'displayUrl', 'webUrl', 'optimizedUrl', 'publicUrl', 'imageUrl', 'fileUrl', 'signedUrl', 'src', 'thumbnailUrl', 'thumbUrl', 'thumbnail', 'originalUrl']
 const THUMB_KEYS = ['thumbnailUrl', 'thumbUrl', 'thumbnail', 'smallUrl', 'previewUrl']
 
 const pick = (raw: Record<string, any>, keys: string[]): string => {

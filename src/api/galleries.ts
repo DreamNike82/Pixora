@@ -125,6 +125,8 @@ export type Selection = {
   comment?: string
   photoCount: number
   status: string
+  photoIds?: string[] // якщо сервер віддає їх у списку відборів — потрібні для експорту без /export
+  filenames?: string[]
 }
 
 // Сервер може віддати список масивом або обгорнутим в об'єкт; поля теж можуть називатися трохи інакше
@@ -135,6 +137,13 @@ const unwrapList = (data: any): any[] => {
   throw new Error(`Невідомий формат списку відборів. Поля відповіді: ${data && typeof data === 'object' ? Object.keys(data).join(', ') || '(порожньо)' : String(data)}`)
 }
 
+// Зібрати значення з photoIds / photos / items незалежно від того, як сервер їх назвав
+const collect = (r: Record<string, any>, get: (x: any) => unknown): string[] | undefined => {
+  const list = [r.photoIds, r.photos, r.items, r.selectedPhotos].find(Array.isArray) as any[] | undefined
+  const out = list?.map(get).filter((v): v is string => typeof v === 'string' && v !== '')
+  return out && out.length > 0 ? out : undefined
+}
+
 const normalizeSelection = (r: Record<string, any>): Selection => ({
   id: String(r.id ?? r.selectionId),
   clientName: r.clientName ?? r.name ?? r.client?.name ?? 'Клієнт',
@@ -142,6 +151,8 @@ const normalizeSelection = (r: Record<string, any>): Selection => ({
   comment: r.comment ?? undefined,
   photoCount: r.photoCount ?? r.count ?? r.photoIds?.length ?? r.photos?.length ?? r.items?.length ?? r._count?.photos ?? r._count?.items ?? 0,
   status: r.status ?? '',
+  photoIds: collect(r, (x) => x?.photoId ?? x?.photo?.id ?? (typeof x === 'string' ? x : x?.id)),
+  filenames: collect(r, (x) => x?.filename ?? x?.photo?.filename),
 })
 
 const base = (id: string) => `/api/admin/galleries/${id}`
