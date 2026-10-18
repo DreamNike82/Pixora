@@ -1,4 +1,4 @@
-import { api } from './client'
+import { api, downloadArchive } from './client'
 import { normalizePhoto } from './photos'
 import type { Photo } from './photos'
 
@@ -71,11 +71,28 @@ export type CreateGalleryPayload = {
   status: GalleryStatus
 }
 
-// PATCH /api/admin/galleries/[id]
+// PATCH /api/admin/galleries/[id] — у документації тіло містить усі три поля: { status, coverUrl, settings: { downloadEnabled } }
 export type UpdateGalleryPayload = {
   status?: GalleryStatus
   coverUrl?: string
-  settings?: GallerySettings
+  settings?: { downloadEnabled?: boolean }
+}
+
+/**
+ * Збирає тіло PATCH строго у форматі з документації: завжди передаємо status, settings.downloadEnabled і coverUrl
+ * (якщо він відомий), підставляючи поточні значення галереї для полів, які не змінюємо.
+ * Так сервер не відхиляє запит валідацією через відсутні поля.
+ */
+export function buildUpdate(
+  gallery: GalleryDetails,
+  patch: { status?: GalleryStatus; coverUrl?: string; downloadEnabled?: boolean },
+): UpdateGalleryPayload {
+  const coverUrl = patch.coverUrl ?? gallery.coverUrl ?? gallery.photos.find((p) => p.url)?.url
+  return {
+    status: patch.status ?? gallery.status ?? 'DRAFT',
+    ...(coverUrl ? { coverUrl } : {}),
+    settings: { downloadEnabled: patch.downloadEnabled ?? gallery.settings.downloadEnabled ?? true },
+  }
 }
 
 type RawGallery = Omit<GalleryDetails, 'photos' | 'settings'> & { photos?: any[]; settings?: Record<string, any> }
@@ -109,7 +126,8 @@ export const galleriesApi = {
   remove: (id: string) => api<{ success: boolean }>(base(id), { method: 'DELETE' }),
 
   analytics: (id: string) => api<Analytics>(`${base(id)}/analytics`),
-  downloadZip: (id: string) => api<{ downloadUrl: string }>(`${base(id)}/download`),
+  // GET .../download → { downloadUrl } (або сам файл — обидва варіанти обробляє downloadArchive)
+  downloadZip: (id: string) => downloadArchive(`${base(id)}/download`, 'gallery.zip'),
   createSection: (id: string, name: string) =>
     api<Section>(`${base(id)}/sections`, { method: 'POST', body: { name } }),
 

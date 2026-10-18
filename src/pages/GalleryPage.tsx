@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ChangeEvent, DragEvent } from "react";
 import { Link, useParams } from "react-router-dom";
-import { galleriesApi } from "../api/galleries";
+import { buildUpdate, galleriesApi } from "../api/galleries";
 import type { GalleryDetails, GalleryStatus, Section } from "../api/galleries";
-import { photosApi } from "../api/photos";
+import { isPending, photosApi } from "../api/photos";
 import type { Photo } from "../api/photos";
 import { profileApi } from "../api/profile";
 import type { Profile } from "../api/profile";
@@ -53,7 +53,8 @@ export default function GalleryPage() {
   }, [load]);
 
   // Фото після S3-завантаження обробляються асинхронно (url з'являється пізніше) — підтягуємо оновлення
-  const hasPending = photos.some((p) => !p.url);
+  const missingUrl = photos.filter((p) => !p.url);
+  const hasPending = missingUrl.some(isPending);
   useEffect(() => {
     if (!hasPending) return;
     let attempts = 0;
@@ -63,6 +64,15 @@ export default function GalleryPage() {
     }, 4000);
     return () => clearInterval(timer);
   }, [hasPending, load]);
+
+  // Фото без адреси ставимо в обробку (POST .../photos/process) — по одному разу на фото
+  const processed = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    const fresh = missingUrl.map((p) => p.id).filter((pid) => !processed.current.has(pid));
+    if (fresh.length === 0) return;
+    fresh.forEach((pid) => processed.current.add(pid));
+    photosApi.process(id, fresh).catch(() => {});
+  }, [missingUrl, id]);
 
   // Текст і налаштування водяного знака беремо з профілю фотографа
   useEffect(() => {
@@ -138,7 +148,7 @@ export default function GalleryPage() {
   const setCover = async (photo: Photo) => {
     setNotice(null);
     try {
-      await galleriesApi.update(id, { coverUrl: photo.url });
+      await galleriesApi.update(id, buildUpdate(gallery!, { coverUrl: photo.url }));
       setGallery((g) => (g ? { ...g, coverUrl: photo.url } : g));
     } catch (e) {
       setNotice(`Не вдалося змінити обкладинку: ${e instanceof Error ? e.message : "невідома помилка"}`);
@@ -175,7 +185,7 @@ export default function GalleryPage() {
     setPublishing(true);
     setNotice(null);
     try {
-      await galleriesApi.update(id, { status: next });
+      await galleriesApi.update(id, buildUpdate(gallery!, { status: next }));
       // Перечитуємо галерею: так видно, що статус справді змінився на сервері
       const fresh = await galleriesApi.get(id);
       setGallery(fresh);
@@ -236,6 +246,13 @@ export default function GalleryPage() {
           {notice && (
             <div className="mx-auto mt-8 max-w-[1240px] px-5 sm:px-8">
               <p role="alert" className="rounded-xl bg-[#71142a]/10 px-4 py-3 text-sm text-[#71142a]">{notice}</p>
+            </div>
+          )}
+          {missingUrl.length > 0 && !hasPending && (
+            <div className="mx-auto mt-8 max-w-[1240px] px-5 sm:px-8">
+              <p role="alert" className="rounded-xl bg-[#71142a]/10 px-4 py-3 text-sm text-[#71142a]">
+                Сервер не повернув адресу зображення для {missingUrl.length} фото. Поля у його відповіді: {missingUrl[0].rawKeys?.join(", ")}.
+              </p>
             </div>
           )}
           <GalleryInsights gallery={gallery} published={published} onChange={(patch) => setGallery((g) => (g ? { ...g, ...patch } : g))} />
@@ -324,11 +341,11 @@ export default function GalleryPage() {
                     <article key={photo.id} className="group relative aspect-[3/4] overflow-hidden rounded-xl bg-[#3a2f2b]">
                       {photo.url ? (
                         <button type="button" onClick={() => (selectMode ? toggleSelected(photo.id) : setPreviewId(photo.id))} className="absolute inset-0 block h-full w-full" aria-label={`Переглянути фото ${photo.filename}`}>
-                          <img src={photo.url} alt={photo.filename} loading="lazy" draggable={false} onContextMenu={(e) => e.preventDefault()} className="h-full w-full select-none object-cover transition duration-700 group-hover:scale-105" />
+                          <img src={photo.thumbUrl || photo.url} alt={photo.filename} loading="lazy" draggable={false} onContextMenu={(e) => e.preventDefault()} className="h-full w-full select-none object-cover transition duration-700 group-hover:scale-105" />
                           {watermark && <Watermark text={watermarkText} opacity={watermarkOpacity} scale={0.55} />}
                         </button>
                       ) : (
-                        <div className="grid h-full place-items-center px-3 text-center text-xs text-white/50">Обробляється…</div>
+                        <div className="grid h-full place-items-center px-3 text-center text-xs text-white/50">{isPending(photo) ? "Обробляється…" : "Немає адреси фото"}</div>
                       )}
                       <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/55 to-transparent opacity-0 transition group-hover:opacity-100" />
                       <p className="pointer-events-none absolute bottom-3 left-3 right-36 truncate text-xs text-white opacity-0 transition group-hover:opacity-100">{photo.filename}</p>

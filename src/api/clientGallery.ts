@@ -1,4 +1,4 @@
-import { api, BASE_URL } from './client'
+import { api, BASE_URL, downloadArchive } from './client'
 import { normalizeSettings } from './galleries'
 import type { GallerySettings } from './galleries'
 import { normalizePhoto } from './photos'
@@ -56,8 +56,7 @@ export const clientApi = {
     }),
 
   // GET /api/client/galleries/[id]/download → { downloadUrl } (враховує налаштування скачування)
-  download: (galleryId: string) =>
-    api<{ downloadUrl: string }>(`/api/client/galleries/${galleryId}/download`),
+  download: (galleryId: string) => downloadArchive(`/api/client/galleries/${galleryId}/download`, 'gallery.zip'),
 
   // POST /api/client/galleries/[id]/download-token { email } → { token } (anti-hotlink)
   downloadToken: (galleryId: string, email: string) =>

@@ -4,6 +4,7 @@ import { useParams } from "react-router-dom";
 import { ApiError } from "../api/client";
 import { clientApi } from "../api/clientGallery";
 import type { ClientGallery, ClientPhoto } from "../api/clientGallery";
+import { isPending } from "../api/photos";
 import Icon from "../components/Icon";
 import Lightbox from "../components/Lightbox";
 import Logo from "../components/Logo";
@@ -85,8 +86,7 @@ export default function ClientGalleryPage() {
     if (!gallery) return;
     setDownloading(true);
     try {
-      const { downloadUrl } = await clientApi.download(gallery.id);
-      window.location.href = downloadUrl;
+      await clientApi.download(gallery.id);
     } catch (e) {
       alert(e instanceof Error ? e.message : "Не вдалося підготувати архів");
     } finally {
@@ -166,10 +166,10 @@ export default function ClientGalleryPage() {
               <article key={photo.id} className="group relative aspect-[3/4] overflow-hidden rounded-xl bg-[#3a2f2b]">
                 {photo.url ? (
                   <button type="button" onClick={() => setPreviewId(photo.id)} className="absolute inset-0 block h-full w-full" aria-label={`Переглянути фото ${photo.filename}`}>
-                    <img src={photo.url} alt={photo.filename} loading="lazy" draggable={false} onContextMenu={(e) => e.preventDefault()} className="h-full w-full select-none object-cover transition duration-700 group-hover:scale-105" />
+                    <img src={photo.thumbUrl || photo.url} alt={photo.filename} loading="lazy" draggable={false} onContextMenu={(e) => e.preventDefault()} className="h-full w-full select-none object-cover transition duration-700 group-hover:scale-105" />
                   </button>
                 ) : (
-                  <div className="grid h-full place-items-center text-xs text-white/50">Обробляється…</div>
+                  <div className="grid h-full place-items-center text-xs text-white/50">{isPending(photo) ? "Обробляється…" : "Немає адреси фото"}</div>
                 )}
                 {selectionAllowed && <button onClick={() => toggleFavorite(photo)} disabled={!selectionOpen} aria-pressed={favorites.has(photo.id)} aria-label="Додати фото до обраних" className={`absolute right-3 top-3 grid h-9 w-9 place-items-center rounded-full backdrop-blur transition ${favorites.has(photo.id) ? "bg-[#711329] text-white" : "bg-white/85 text-[#661225]"}`}>
                   <Icon name="heart" size={16} />

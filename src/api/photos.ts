@@ -1,22 +1,43 @@
 import { api } from './client'
 
-// Модель фото за API_DOCS.md: { id, url, filename }.
-// sectionId у документації окремо не описаний, але приймається при завантаженні (поле sectionId) — читаємо його, якщо сервер віддає.
+// Документація гарантує лише { id, url, filename } (відповідь завантаження). У списку фото (GET галереї)
+// поля описані як "[...]", тому адресу зображення шукаємо серед відомих варіантів назв.
 export type Photo = {
   id: string
-  url: string // порожній рядок — фото ще обробляється (напр. після завантаження через S3)
+  url: string // найкраща доступна адреса для перегляду; порожній рядок — фото ще обробляється
+  thumbUrl?: string // мініатюра, якщо сервер її віддає
   filename: string
   sectionId?: string | null
+  status?: string // напр. PROCESSING / READY, якщо сервер віддає
+  rawKeys?: string[] // назви полів з відповіді — лише якщо адресу зображення знайти не вдалося (для діагностики)
 }
 
-type RawPhoto = { id: string; url?: string | null; filename?: string | null; sectionId?: string | null }
+const VIEW_KEYS = ['url', 'previewUrl', 'displayUrl', 'webUrl', 'watermarkedUrl', 'optimizedUrl', 'publicUrl', 'imageUrl', 'fileUrl', 'signedUrl', 'src', 'thumbnailUrl', 'thumbUrl', 'thumbnail', 'originalUrl']
+const THUMB_KEYS = ['thumbnailUrl', 'thumbUrl', 'thumbnail', 'smallUrl', 'previewUrl']
 
-export const normalizePhoto = (raw: RawPhoto): Photo => ({
-  id: String(raw.id),
-  url: raw.url ?? '',
-  filename: raw.filename ?? 'photo',
-  sectionId: raw.sectionId ?? null,
-})
+const pick = (raw: Record<string, any>, keys: string[]): string => {
+  const nested = (raw.urls ?? raw.variants ?? {}) as Record<string, unknown>
+  for (const k of keys) {
+    const v = raw[k] ?? nested[k]
+    if (typeof v === 'string' && v) return v
+  }
+  return ''
+}
+
+export function normalizePhoto(raw: Record<string, any>): Photo {
+  const url = pick(raw, VIEW_KEYS)
+  return {
+    id: String(raw.id),
+    url,
+    thumbUrl: pick(raw, THUMB_KEYS) || undefined,
+    filename: raw.filename ?? raw.fileName ?? raw.originalName ?? raw.originalFilename ?? raw.name ?? 'photo',
+    sectionId: raw.sectionId ?? raw.section?.id ?? null,
+    status: raw.status ?? raw.processingStatus ?? undefined,
+    rawKeys: url ? undefined : Object.keys(raw),
+  }
+}
+
+export const isPending = (p: Photo) => !p.url && (!p.rawKeys || /PROCESS|PENDING|UPLOAD|QUEUE/i.test(p.status ?? ''))
 
 // Vercel не пропускає тіло запиту більше ~4.5 MB, тому великі файли йдуть через presigned URL у S3
 const DIRECT_UPLOAD_LIMIT = 4_000_000
@@ -27,7 +48,12 @@ export const photosApi = {
     const formData = new FormData()
     formData.append('file', file)
     if (sectionId) formData.append('sectionId', sectionId)
-    return api<RawPhoto>(`/api/admin/galleries/${galleryId}/photos`, { method: 'POST', formData }).then(normalizePhoto)
+    return api<Record<string, any>>(`/api/admin/galleries/${galleryId}/photos`, { method: 'POST', formData }).then(async (raw) => {
+      const photo = normalizePhoto(raw)
+      // POST .../photos/process { photoIds } — водяний знак і ресайз (за документацією). Збій не робить завантаження невдалим.
+      await photosApi.process(galleryId, [photo.id]).catch(() => {})
+      return photo
+    })
   },
 
   // POST .../photos/upload-url { filename, contentType, size } → { uploadUrl, photoId }, далі PUT файла у S3.
