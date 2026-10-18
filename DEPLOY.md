@@ -6,7 +6,7 @@
 
 - `VITE_API_URL` залишайте **порожнім** (і локально, і на хостингу).
 - Vercel: `vercel.json`. Netlify: `netlify.toml`. Обидва містять і проксі `/api`, і SPA-fallback.
-- Збірка: `npm install && npm run build` → папка `dist`.
+- Збірка: `npm install && npm run build (pnpm-lock.yaml видалено: проєкт збирається через npm і package-lock.json)` → папка `dist`.
 
 ## Чекліст перед запуском
 1. Бекенд: Stripe success/cancel URL ведуть на новий домен (сторінка тарифів очікує `?checkout=success` або `?session_id=`).
