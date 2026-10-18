@@ -3,7 +3,13 @@ import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import path from 'node:path'
 
-import siteConfiguration from './.figma/make/site.json'
+// Раніше читалося з ./.figma/make/site.json; тепер вбудовано, щоб збірка не залежала від папки .figma
+const siteConfiguration = {
+  description:
+    'Enables photographers and clients to manage, select, and approve photo galleries with customizable limits, comments, and Lightroom export tools.',
+  robots: { index: false },
+  accessibility: { addBypassLinks: false, ignoreReducedMotion: false },
+}
 
 
 // Vite config — https://vitejs.dev/config/
