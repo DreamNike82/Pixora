@@ -1,15 +1,17 @@
 import { useCallback, useEffect, useState } from "react";
 import { galleriesApi } from "../../api/galleries";
 import type { Selection } from "../../api/galleries";
+import type { Photo } from "../../api/photos";
 import Icon from "../Icon";
 
 const statusLabel: Record<string, string> = { PENDING: "Очікує", DONE: "Оброблено" };
 
 /** Відбори, які клієнти надіслали фотографу, + експорт назв файлів для Lightroom. */
-export default function SelectionsPanel({ galleryId }: { galleryId: string }) {
+export default function SelectionsPanel({ galleryId, photos }: { galleryId: string; photos: Photo[] }) {
   const [items, setItems] = useState<Selection[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [note, setNote] = useState<{ ok: boolean; text: string } | null>(null);
 
   const load = useCallback(() => {
     setError(null);
@@ -23,14 +25,40 @@ export default function SelectionsPanel({ galleryId }: { galleryId: string }) {
     load();
   }, [load]);
 
+  // Якщо /export повернув помилку, збираємо назви файлів самі: за id фото з відбору та фото цієї галереї
+  const localFilenames = (s: Selection): string[] => {
+    if (s.filenames?.length) return s.filenames;
+    const names = new Map(photos.map((p) => [p.id, p.filename]));
+    return (s.photoIds ?? []).map((id) => names.get(id)).filter((n): n is string => !!n);
+  };
+
   const copyForLightroom = async (s: Selection) => {
+    setNote(null);
+    let filenames: string[] = [];
+    let serverError: string | null = null;
     try {
-      const { filenames } = await galleriesApi.exportSelection(galleryId, s.id);
+      filenames = (await galleriesApi.exportSelection(galleryId, s.id)).filenames;
+    } catch (e) {
+      serverError = e instanceof Error ? e.message : "помилка";
+    }
+    if (filenames.length === 0) filenames = localFilenames(s);
+
+    if (filenames.length === 0) {
+      setNote({
+        ok: false,
+        text: serverError
+          ? `Сервер не зміг підготувати список (${serverError}), а у даних відбору немає інформації про фото, щоб зібрати його на сторінці.`
+          : "У цьому відборі немає фото для експорту.",
+      });
+      return;
+    }
+    try {
       await navigator.clipboard.writeText(filenames.join(", "));
       setCopiedId(s.id);
       setTimeout(() => setCopiedId(null), 2500);
-    } catch (e) {
-      alert(e instanceof Error ? e.message : "Не вдалося скопіювати список");
+      if (serverError) setNote({ ok: true, text: `Список скопійовано (${filenames.length}). Сервер повернув помилку експорту («${serverError}»), тому назви зібрано на сторінці.` });
+    } catch {
+      setNote({ ok: false, text: "Браузер не дозволив скопіювати в буфер обміну." });
     }
   };
 
@@ -51,6 +79,7 @@ export default function SelectionsPanel({ galleryId }: { galleryId: string }) {
           <h2 className="font-serif text-3xl text-[#4d1020]">Відбори клієнтів</h2>
           <button onClick={load} className="button border border-[#d8c7bd] text-[#6e605a]">Оновити</button>
         </div>
+        {note && <p role="alert" className={`mt-4 rounded-xl px-4 py-3 text-sm ${note.ok ? "bg-[#2f6b3f]/10 text-[#2f6b3f]" : "bg-[#71142a]/10 text-[#71142a]"}`}>{note.text}</p>}
         {error && <p role="alert" className="mt-4 rounded-xl bg-[#71142a]/10 px-4 py-3 text-sm text-[#71142a]">{error}</p>}
         {!error && items === null && <p className="mt-4 text-sm text-[#766961]">Завантаження…</p>}
         {items?.length === 0 && <p className="mt-4 text-sm text-[#766961]">Клієнти ще не надсилали відбір.</p>}
