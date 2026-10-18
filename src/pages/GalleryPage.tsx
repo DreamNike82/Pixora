@@ -181,7 +181,7 @@ export default function GalleryPage() {
   const status: GalleryStatus = gallery?.status ?? "DRAFT";
 
   const togglePublish = async () => {
-    const next: GalleryStatus = status === "PUBLISHED" ? "DRAFT" : "PUBLISHED";
+    const next: GalleryStatus = status === "ACTIVE" ? "DRAFT" : "ACTIVE";
     setPublishing(true);
     setNotice(null);
     try {
@@ -199,7 +199,7 @@ export default function GalleryPage() {
     }
   };
 
-  const published = status === "PUBLISHED";
+  const published = status === "ACTIVE";
 
   // У перегляд потрапляють лише фото, у яких уже є url (необроблені пропускаємо)
   const visiblePhotos = filter === "all" ? photos : photos.filter((p) => p.sectionId === filter);

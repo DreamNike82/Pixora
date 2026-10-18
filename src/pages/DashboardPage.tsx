@@ -8,7 +8,8 @@ import Icon from "../components/Icon";
 
 const statusLabel: Record<GalleryStatus, string> = {
   DRAFT: "Чернетка",
-  PUBLISHED: "Опубліковано",
+  ACTIVE: "Опубліковано",
+  ARCHIVED: "Архів",
 };
 
 const inputClass =
@@ -74,7 +75,7 @@ export default function DashboardPage() {
                     ) : (
                       <div className="grid h-full place-items-center text-[#b5a39a]"><Icon name="image" size={34} /></div>
                     )}
-                    <span className={`absolute left-4 top-4 rounded-full px-3 py-1 text-[10px] uppercase tracking-[.15em] ${gallery.status === "PUBLISHED" ? "bg-[#561124] text-white" : "bg-white/90 text-[#6e605a]"}`}>
+                    <span className={`absolute left-4 top-4 rounded-full px-3 py-1 text-[10px] uppercase tracking-[.15em] ${gallery.status === "ACTIVE" ? "bg-[#561124] text-white" : "bg-white/90 text-[#6e605a]"}`}>
                       {statusLabel[gallery.status] ?? gallery.status}
                     </span>
                   </Link>
