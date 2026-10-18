@@ -67,6 +67,7 @@ export type GalleryDetails = {
   settings: GallerySettings
   sections?: Section[]
   photos: Photo[]
+  rawKeys?: string[] // назви полів відповіді сервера — для діагностики
 }
 
 // POST /api/admin/galleries
@@ -83,6 +84,7 @@ export type UpdateGalleryPayload = {
   status?: GalleryStatus
   coverUrl?: string
   settings?: { downloadEnabled?: boolean }
+  allowDownload?: boolean // плоске поле моделі Gallery на бекенді (settings.downloadEnabled з документації може ігноруватися)
 }
 
 /**
@@ -109,6 +111,7 @@ const normalize = (g: RawGallery): GalleryDetails => ({
   settings: normalizeSettings(g as Record<string, any>),
   photos: (g.photos ?? []).map(normalizePhoto),
   sections: g.sections?.map(normalizeSection),
+  rawKeys: Object.keys(g),
 })
 
 // GET .../analytics → { views, downloads, favorites }
@@ -118,9 +121,28 @@ export type Analytics = { views: number; downloads: number; favorites: number }
 export type Selection = {
   id: string
   clientName: string
+  clientEmail?: string
+  comment?: string
   photoCount: number
   status: string
 }
+
+// Сервер може віддати список масивом або обгорнутим в об'єкт; поля теж можуть називатися трохи інакше
+const unwrapList = (data: any): any[] => {
+  if (Array.isArray(data)) return data
+  const list = [data?.selections, data?.items, data?.data, data?.results].find(Array.isArray)
+  if (list) return list
+  throw new Error(`Невідомий формат списку відборів. Поля відповіді: ${data && typeof data === 'object' ? Object.keys(data).join(', ') || '(порожньо)' : String(data)}`)
+}
+
+const normalizeSelection = (r: Record<string, any>): Selection => ({
+  id: String(r.id ?? r.selectionId),
+  clientName: r.clientName ?? r.name ?? r.client?.name ?? 'Клієнт',
+  clientEmail: r.clientEmail ?? r.email ?? undefined,
+  comment: r.comment ?? undefined,
+  photoCount: r.photoCount ?? r.count ?? r.photoIds?.length ?? r.photos?.length ?? r.items?.length ?? r._count?.photos ?? r._count?.items ?? 0,
+  status: r.status ?? '',
+})
 
 const base = (id: string) => `/api/admin/galleries/${id}`
 
@@ -140,9 +162,11 @@ export const galleriesApi = {
   createSection: (id: string, name: string) =>
     api<Record<string, any>>(`${base(id)}/sections`, { method: 'POST', body: { title: name } }).then(normalizeSection),
 
-  selections: (id: string) => api<Selection[]>(`${base(id)}/selections`),
+  selections: (id: string) => api<unknown>(`${base(id)}/selections`).then((d) => unwrapList(d).map(normalizeSelection)),
   removeSelection: (id: string, selectionId: string) =>
     api<{ success: boolean }>(`${base(id)}/selections/${selectionId}`, { method: 'DELETE' }),
   exportSelection: (id: string, selectionId: string) =>
-    api<{ filenames: string[] }>(`${base(id)}/selections/${selectionId}/export`),
+    api<any>(`${base(id)}/selections/${selectionId}/export`).then((d): { filenames: string[] } => ({
+      filenames: Array.isArray(d) ? d : d?.filenames ?? d?.files ?? [],
+    })),
 }
