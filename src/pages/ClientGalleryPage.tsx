@@ -25,6 +25,7 @@ export default function ClientGalleryPage() {
   const [submitOpen, setSubmitOpen] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  const [favNotice, setFavNotice] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -74,11 +75,15 @@ export default function ClientGalleryPage() {
         value ? set.add(photo.id) : set.delete(photo.id);
         return set;
       });
-    apply(next); // оптимістично, відкочуємо при помилці
+    // Вибір лишається на сторінці й піде у фінальний відбір (POST .../selections з photoIds).
+    // PATCH .../photos/[photoId] — це синхронізація «обраного» з сервером: якщо вона не пройшла, не скидаємо вибір,
+    // а показуємо причину.
+    apply(next);
     try {
       await clientApi.favorite(token, photo.id, next);
-    } catch {
-      apply(!next);
+      setFavNotice(null);
+    } catch (e) {
+      setFavNotice(`Сервер не зберіг «обране» (${e instanceof Error ? e.message : "помилка"}). Вибір збережено на цій сторінці — його буде враховано при надсиланні відбору.`);
     }
   };
 
@@ -157,6 +162,12 @@ export default function ClientGalleryPage() {
           </div>
         </div>
       </header>
+
+      {favNotice && (
+        <div className="bg-[#211a18] px-5 pt-6 sm:px-8">
+          <p role="alert" className="mx-auto max-w-[1340px] rounded-xl bg-[#e8beb5]/15 px-4 py-3 text-sm text-[#edc9c0]">{favNotice}</p>
+        </div>
+      )}
 
       <section className="bg-[#211a18] py-16 text-white sm:py-20">
         <div className="mx-auto max-w-[1340px] px-5 sm:px-8">
