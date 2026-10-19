@@ -159,7 +159,12 @@ export default function GalleryPage() {
       setTimeout(load, 3000);
       setTimeout(load, 10000);
     } catch (e) {
-      setNotice(`Не вдалося запустити обробку: ${e instanceof Error ? e.message : "невідома помилка"}`);
+      const msg = e instanceof Error ? e.message : "невідома помилка";
+      setNotice(
+        /origin/i.test(msg)
+          ? `Не вдалося запустити обробку: сервер відхилив запит (${msg}). Власнику бекенду потрібно додати ${window.location.origin} до дозволених origin — доки цього не зроблено, водяні знаки не накладаються.`
+          : `Не вдалося запустити обробку: ${msg}`,
+      );
     } finally {
       setProcessing(false);
     }

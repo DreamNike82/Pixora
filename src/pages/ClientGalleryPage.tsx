@@ -26,6 +26,7 @@ export default function ClientGalleryPage() {
   const [submitted, setSubmitted] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [favNotice, setFavNotice] = useState<string | null>(null);
+  const [selProgress, setSelProgress] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -99,6 +100,31 @@ export default function ClientGalleryPage() {
     }
   };
 
+  // Ендпоінт архіву не приймає список фото (завжди віддає всю галерею), тому обрані скачуємо по одному
+  // через GET .../photos/[photoId]/download
+  const downloadSelected = async () => {
+    if (!gallery) return;
+    const items = gallery.photos.filter((p) => favorites.has(p.id));
+    if (items.length === 0) return;
+    setDownloading(true);
+    setFavNotice(null);
+    let failed = 0;
+    let lastError = "";
+    for (let i = 0; i < items.length; i++) {
+      setSelProgress(`${i + 1} / ${items.length}`);
+      try {
+        await clientApi.downloadPhoto(gallery.id, items[i].id, items[i].filename, { anchor: true });
+      } catch (e) {
+        failed++;
+        lastError = e instanceof Error ? e.message : "помилка";
+      }
+      await new Promise((r) => setTimeout(r, 600)); // браузери блокують надто швидкі серії завантажень
+    }
+    setSelProgress(null);
+    setDownloading(false);
+    if (failed > 0) setFavNotice(`Не вдалося скачати ${failed} з ${items.length} фото (${lastError}).`);
+  };
+
   const shell = (children: React.ReactNode) => (
     <main className="min-h-screen bg-[#f7f0e9] text-[#2a211e]">{children}</main>
   );
@@ -149,9 +175,14 @@ export default function ClientGalleryPage() {
                 {gallery.settings.isSelectionLocked ? "Відбір закрито · " : ""}Обрано: {favorites.size}{maxCount ? ` / ${maxCount}` : ` з ${gallery.photos.length}`}
               </span>
             )}
+            {downloadEnabled && favorites.size > 0 && (
+              <button onClick={downloadSelected} disabled={downloading} className="button button-ghost disabled:opacity-60">
+                <Icon name="download" size={16} /> {selProgress ? `Скачуємо ${selProgress}` : `Скачати обрані (${favorites.size})`}
+              </button>
+            )}
             {downloadEnabled && (
               <button onClick={downloadAll} disabled={downloading} className="button button-ghost disabled:opacity-60">
-                <Icon name="download" size={16} /> {downloading ? "Готуємо…" : "Скачати все"}
+                <Icon name="download" size={16} /> {downloading && !selProgress ? "Готуємо…" : "Скачати всі фото"}
               </button>
             )}
             {selectionAllowed && (
