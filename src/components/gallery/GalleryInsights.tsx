@@ -13,6 +13,7 @@ type Props = {
 /** Посилання для клієнта, налаштування скачування (PATCH settings.downloadEnabled), ZIP і статистика. */
 export default function GalleryInsights({ gallery, published, onChange }: Props) {
   const [stats, setStats] = useState<Analytics | null>(null);
+  const [statsError, setStatsError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [zipBusy, setZipBusy] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -21,7 +22,7 @@ export default function GalleryInsights({ gallery, published, onChange }: Props)
   const [downloadEnabled, setDownloadEnabled] = useState(gallery.settings.downloadEnabled ?? true);
 
   useEffect(() => {
-    galleriesApi.analytics(gallery.id).then(setStats).catch(() => {});
+    galleriesApi.analytics(gallery.id).then(setStats).catch((e) => setStatsError(e instanceof Error ? e.message : "Не вдалося завантажити статистику"));
   }, [gallery.id]);
 
   const link = gallery.accessToken ? `${window.location.origin}/g/${gallery.accessToken}` : null;
@@ -123,6 +124,11 @@ export default function GalleryInsights({ gallery, published, onChange }: Props)
           ))}
         </div>
       </div>
+      {statsError && (
+        <div className="mx-auto mt-4 max-w-[1240px] px-5 sm:px-8">
+          <p role="alert" className="rounded-xl bg-[#71142a]/10 px-4 py-3 text-sm text-[#71142a]">Статистика недоступна: {statsError}</p>
+        </div>
+      )}
     </section>
   );
 }
