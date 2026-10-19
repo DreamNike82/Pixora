@@ -204,7 +204,7 @@ export default function ClientGalleryPage() {
                 <Icon name="heart" size={18} />
               </button>}
               {downloadEnabled && (
-                <button onClick={() => window.open(clientApi.photoDownloadUrl(gallery.id, photo.id), "_blank")} aria-label="Скачати фото" className="grid h-10 w-10 place-items-center rounded-full bg-white/10 transition hover:bg-white/20">
+                <button onClick={() => clientApi.downloadPhoto(gallery.id, photo.id, photo.filename).catch((e) => setFavNotice(`Не вдалося скачати фото: ${e instanceof Error ? e.message : "помилка"}`))} aria-label="Скачати фото" className="grid h-10 w-10 place-items-center rounded-full bg-white/10 transition hover:bg-white/20">
                   <Icon name="download" size={18} />
                 </button>
               )}
