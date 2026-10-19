@@ -64,6 +64,6 @@ export const clientApi = {
 
   // GET /api/client/galleries/[id]/photos/[photoId]/download — відповідь у документації не описана:
   // обробляємо і JSON з посиланням, і сам файл
-  downloadPhoto: (galleryId: string, photoId: string, filename = 'photo.jpg') =>
-    downloadArchive(`/api/client/galleries/${galleryId}/photos/${photoId}/download`, filename),
+  downloadPhoto: (galleryId: string, photoId: string, filename = 'photo.jpg', opts: { anchor?: boolean } = {}) =>
+    downloadArchive(`/api/client/galleries/${galleryId}/photos/${photoId}/download`, filename, opts),
 }

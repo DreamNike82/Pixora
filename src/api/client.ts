@@ -67,7 +67,7 @@ export async function api<T = unknown>(
  * Ендпоінти «скачати архів» у документації повертають { downloadUrl }, але на практиці можуть віддавати
  * сам файл. Підтримуємо обидва варіанти: JSON з посиланням → переходимо за ним, інакше зберігаємо отриманий файл.
  */
-export async function downloadArchive(path: string, fallbackName = 'gallery.zip'): Promise<void> {
+export async function downloadArchive(path: string, fallbackName = 'gallery.zip', opts: { anchor?: boolean } = {}): Promise<void> {
   const res = await fetch(`${BASE_URL}${path}`, { credentials: 'include' })
 
   if (!res.ok) {
@@ -81,7 +81,18 @@ export async function downloadArchive(path: string, fallbackName = 'gallery.zip'
     const data = await res.json().catch(() => null)
     const url: unknown = data?.downloadUrl ?? data?.url
     if (typeof url !== 'string' || !url) throw new Error('Сервер не повернув посилання на архів')
-    window.location.href = url
+    if (opts.anchor) {
+      // Для серії завантажень не переходимо по посиланню (це скасувало б попередні), а клікаємо по прихованому <a>
+      const a = document.createElement('a')
+      a.href = url
+      a.download = fallbackName
+      a.rel = 'noopener'
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+    } else {
+      window.location.href = url
+    }
     return
   }
 
