@@ -1,4 +1,4 @@
-import { api, BASE_URL, downloadArchive } from './client'
+import { api, downloadArchive } from './client'
 import { normalizeSettings } from './galleries'
 import type { GallerySettings } from './galleries'
 import { normalizePhoto } from './photos'
@@ -62,7 +62,8 @@ export const clientApi = {
   downloadToken: (galleryId: string, email: string) =>
     api<{ token: string }>(`/api/client/galleries/${galleryId}/download-token`, { method: 'POST', body: { email } }),
 
-  // GET /api/client/galleries/[id]/photos/[photoId]/download — відповідь у документації не описана, тому відкриваємо URL
-  photoDownloadUrl: (galleryId: string, photoId: string) =>
-    `${BASE_URL}/api/client/galleries/${galleryId}/photos/${photoId}/download`,
+  // GET /api/client/galleries/[id]/photos/[photoId]/download — відповідь у документації не описана:
+  // обробляємо і JSON з посиланням, і сам файл
+  downloadPhoto: (galleryId: string, photoId: string, filename = 'photo.jpg') =>
+    downloadArchive(`/api/client/galleries/${galleryId}/photos/${photoId}/download`, filename),
 }

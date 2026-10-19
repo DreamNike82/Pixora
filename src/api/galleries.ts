@@ -166,7 +166,16 @@ export const galleriesApi = {
     api<{ success: boolean }>(base(id), { method: 'PATCH', body: data }),
   remove: (id: string) => api<{ success: boolean }>(base(id), { method: 'DELETE' }),
 
-  analytics: (id: string) => api<Analytics>(`${base(id)}/analytics`),
+  // GET .../analytics → { views, downloads, favorites }; назви лічильників читаємо з кількох можливих варіантів
+  analytics: (id: string) =>
+    api<Record<string, any>>(`${base(id)}/analytics`).then((d): Analytics => {
+      const n = (...vals: unknown[]) => Number(vals.find((v) => typeof v === 'number' || (typeof v === 'string' && v !== '')) ?? 0) || 0
+      return {
+        views: n(d?.views, d?.viewCount, d?.viewsCount, d?.totalViews),
+        downloads: n(d?.downloads, d?.downloadCount, d?.downloadsCount, d?.totalDownloads),
+        favorites: n(d?.favorites, d?.favoriteCount, d?.favoritesCount, d?.selectedCount, d?.selections),
+      }
+    }),
   // GET .../download → { downloadUrl } (або сам файл — обидва варіанти обробляє downloadArchive)
   downloadZip: (id: string) => downloadArchive(`${base(id)}/download`, 'gallery.zip'),
   // POST .../sections — бекенд вимагає поле title (документація помилково пише name)
