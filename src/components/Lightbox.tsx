@@ -10,10 +10,11 @@ type Props = {
   onChange: (index: number) => void;
   onClose: () => void;
   watermarkText?: string | null; // null — без водяного знака
+  watermarkImage?: string | null; // власне зображення знака замість тексту
   renderActions?: (photo: Photo) => ReactNode; // додаткові кнопки у верхній панелі (серце, скачати)
 };
 
-export default function Lightbox({ photos, index, onChange, onClose, watermarkText, renderActions }: Props) {
+export default function Lightbox({ photos, index, onChange, onClose, watermarkText, watermarkImage, renderActions }: Props) {
   const photo = photos[index];
   const count = photos.length;
 
@@ -76,7 +77,7 @@ export default function Lightbox({ photos, index, onChange, onClose, watermarkTe
           draggable={false}
           className="block max-h-[82vh] max-w-[92vw] select-none object-contain"
         />
-        {watermarkText && <Watermark text={watermarkText} />}
+        {watermarkText && <Watermark text={watermarkText} imageUrl={watermarkImage} />}
       </div>
     </div>
   );

@@ -1,5 +1,6 @@
 type Props = {
   text: string;
+  imageUrl?: string | null; // власне зображення знака (замість тексту)
   opacity?: number; // 0..1, за замовчуванням .4
   scale?: number; // 1 — для великого перегляду, менше — для мініатюр
   className?: string;
@@ -19,7 +20,23 @@ function tile(text: string, scale: number, opacity: number) {
   return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
 }
 
-export default function Watermark({ text, opacity = 0.4, scale = 1, className = "" }: Props) {
+export default function Watermark({ text, imageUrl, opacity = 0.4, scale = 1, className = "" }: Props) {
+  if (imageUrl) {
+    return (
+      <div
+        aria-hidden="true"
+        onContextMenu={(e) => e.preventDefault()}
+        className={`absolute inset-0 select-none ${className}`}
+        style={{
+          backgroundImage: `url("${imageUrl}")`,
+          backgroundRepeat: "space",
+          backgroundSize: `${Math.round(200 * scale)}px auto`,
+          backgroundPosition: "center",
+          opacity: Math.min(1, Math.max(0.05, opacity)),
+        }}
+      />
+    );
+  }
   return (
     <div
       aria-hidden="true"
