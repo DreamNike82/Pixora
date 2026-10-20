@@ -23,6 +23,7 @@ export const setUnauthorizedHandler = (fn: (() => void) | null) => {
 
 // Бекенд повертає «Ошибка валидации» + деталі в окремому полі — показуємо їх, щоб було видно, яке поле не пройшло
 function errorMessage(data: any, status: number): string {
+  if (status === 413) return 'Файл завеликий для сервера. Зменшіть розмір зображення'
   const base: string = data?.message ?? data?.error ?? `HTTP ${status}`
   if (!data || typeof data !== 'object') return base
   const details = data.details ?? data.issues ?? data.errors ?? data.fieldErrors
@@ -67,8 +68,30 @@ export async function api<T = unknown>(
  * Ендпоінти «скачати архів» у документації повертають { downloadUrl }, але на практиці можуть віддавати
  * сам файл. Підтримуємо обидва варіанти: JSON з посиланням → переходимо за ним, інакше зберігаємо отриманий файл.
  */
+function startBrowserDownload(url: string, hidden = false) {
+  if (!hidden) {
+    window.location.href = url
+    return
+  }
+  // Прихований iframe: не залишає сторінку і не скасовує попередні завантаження в серії
+  const frame = document.createElement('iframe')
+  frame.style.display = 'none'
+  frame.src = url
+  document.body.appendChild(frame)
+  setTimeout(() => frame.remove(), 60_000)
+}
+
 export async function downloadArchive(path: string, fallbackName = 'gallery.zip', opts: { anchor?: boolean } = {}): Promise<void> {
-  const res = await fetch(`${BASE_URL}${path}`, { credentials: 'include' })
+  const url = `${BASE_URL}${path}`
+  let res: Response
+  try {
+    res = await fetch(url, { credentials: 'include' })
+  } catch {
+    // «Failed to fetch»: зазвичай сервер перенаправляє на S3, а fetch блокується через CORS.
+    // Віддаємо завантаження браузеру напряму — він сам піде за редиректом і збереже файл.
+    startBrowserDownload(url, opts.anchor)
+    return
+  }
 
   if (!res.ok) {
     const data = await res.json().catch(() => null)
