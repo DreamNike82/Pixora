@@ -233,7 +233,9 @@ export default function GalleryPage() {
   const previewIndex = viewable.findIndex((p) => p.id === previewId);
   // Налаштування водяного знака беремо з галереї, а якщо їх там немає — з профілю
   const watermark = gallery?.settings.watermarkEnabled ?? profile?.watermarkEnabled ?? true;
-  const watermarkText = gallery?.settings.watermarkText || profile?.name || "PIXORA";
+  // Знак: власне зображення з профілю; якщо його немає — Instagram як текстовий знак
+  const watermarkText = gallery?.settings.watermarkText || profile?.instagram || profile?.name || "PIXORA";
+  const watermarkImage = profile?.watermarkUrl && !profile.watermarkAuto ? profile.watermarkUrl : null;
   const rawOpacity = gallery?.settings.watermarkOpacity;
   const watermarkOpacity = rawOpacity == null ? undefined : rawOpacity > 1 ? rawOpacity / 100 : rawOpacity;
 
@@ -376,7 +378,7 @@ export default function GalleryPage() {
                       {photo.url ? (
                         <button type="button" onClick={() => (selectMode ? toggleSelected(photo.id) : setPreviewId(photo.id))} className="absolute inset-0 block h-full w-full" aria-label={`Переглянути фото ${photo.filename}`}>
                           <img src={photo.thumbUrl || photo.url} alt={photo.filename} loading="lazy" draggable={false} onContextMenu={(e) => e.preventDefault()} className="h-full w-full select-none object-cover transition duration-700 group-hover:scale-105" />
-                          {watermark && <Watermark text={watermarkText} opacity={watermarkOpacity} scale={0.55} />}
+                          {watermark && <Watermark text={watermarkText} imageUrl={watermarkImage} opacity={watermarkOpacity} scale={0.55} />}
                         </button>
                       ) : (
                         <div className="grid h-full place-items-center px-3 text-center text-xs text-white/50">{isPending(photo) ? "Обробляється…" : "Немає адреси фото"}</div>
@@ -413,6 +415,7 @@ export default function GalleryPage() {
           onChange={(i) => setPreviewId(viewable[i].id)}
           onClose={() => setPreviewId(null)}
           watermarkText={watermark ? watermarkText : null}
+          watermarkImage={watermark ? watermarkImage : null}
         />
       )}
     </AppShell>
