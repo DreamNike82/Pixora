@@ -5,6 +5,7 @@ import type { BrandAssetType, Profile } from "../api/profile";
 import AppShell from "../components/AppShell";
 import Icon from "../components/Icon";
 import { makeTextWatermark, prepareImage } from "../lib/image";
+import usePageMeta from "../hooks/usePageMeta";
 
 const inputClass =
   "mt-2 w-full rounded-xl border border-[#d8c7bd] bg-white px-4 py-3 text-sm text-[#2a211e] outline-none transition focus:border-[#71142a] focus:ring-2 focus:ring-[#71142a]/20";
@@ -27,6 +28,7 @@ const Required = () => <span className="text-[#71142a]"> *</span>;
 const FieldError = ({ text }: { text?: string }) => (text ? <span className="mt-1 block text-xs text-[#71142a]">{text}</span> : null);
 
 export default function SettingsPage() {
+  usePageMeta({ title: "Профіль і брендинг", noindex: true });
   const [form, setForm] = useState<Profile>({ name: "", bio: "", instagram: "", watermarkEnabled: true });
   const [urls, setUrls] = useState<Partial<Record<BrandAssetType, string>>>({});
   const [wmAuto, setWmAuto] = useState<string | null>(null); // текст Instagram, з якого створено знак автоматично

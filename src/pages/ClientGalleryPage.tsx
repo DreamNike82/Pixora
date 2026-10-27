@@ -8,6 +8,10 @@ import { isPending } from "../api/photos";
 import Icon from "../components/Icon";
 import Lightbox from "../components/Lightbox";
 import Logo from "../components/Logo";
+import { BrandLogo, PhotographerCard } from "../components/PhotographerBrand";
+import Watermark from "../components/Watermark";
+import usePageMeta from "../hooks/usePageMeta";
+import { LEGAL_PAGES, legalUrl } from "../lib/legal";
 
 const inputClass =
   "mt-2 w-full rounded-xl border border-[#d8c7bd] bg-white px-4 py-3 text-sm text-[#2a211e] outline-none transition focus:border-[#71142a] focus:ring-2 focus:ring-[#71142a]/20";
@@ -27,6 +31,13 @@ export default function ClientGalleryPage() {
   const [downloading, setDownloading] = useState(false);
   const [favNotice, setFavNotice] = useState<string | null>(null);
   const [selProgress, setSelProgress] = useState<string | null>(null);
+
+  // Галерея приватна (доступ за токеном) — не індексуємо, але даємо осмислений заголовок вкладки
+  usePageMeta({
+    title: gallery ? `${gallery.title}${gallery.photographer?.name ? ` · ${gallery.photographer.name}` : ""}` : "Галерея",
+    description: "Приватна галерея фотографа на Pixora.",
+    noindex: true,
+  });
 
   const load = useCallback(async () => {
     try {
@@ -157,6 +168,14 @@ export default function ClientGalleryPage() {
   }
 
   const downloadEnabled = gallery.settings.downloadEnabled !== false;
+  const photographer = gallery.photographer;
+  // Знак: те саме правило, що й у кабінеті (налаштування галереї → профіль → увімкнено за замовчуванням).
+  // Якщо сервер уже вшив знак у файл (photo.watermarked), поверх нього другий не малюємо.
+  const watermarkOn = gallery.settings.watermarkEnabled ?? photographer?.watermarkEnabled ?? true;
+  const watermarkText = gallery.settings.watermarkText || photographer?.instagram || photographer?.studioName || photographer?.name || "PIXORA";
+  const watermarkImage = photographer?.watermarkUrl ?? null;
+  const rawOpacity = gallery.settings.watermarkOpacity;
+  const watermarkOpacity = rawOpacity == null ? undefined : rawOpacity > 1 ? rawOpacity / 100 : rawOpacity;
   const viewable = gallery.photos.filter((p) => p.url);
   const previewIndex = viewable.findIndex((p) => p.id === previewId);
 
@@ -165,9 +184,9 @@ export default function ClientGalleryPage() {
       <header className="bg-[#3d0d1a] text-white">
         <div className="mx-auto flex max-w-[1340px] flex-col gap-8 px-5 pb-14 pt-8 sm:px-8 lg:flex-row lg:items-end lg:justify-between">
           <div className="max-w-[760px]">
-            <Logo light />
+            <BrandLogo photographer={photographer} />
             <h1 className="mt-14 font-serif text-[44px] font-medium leading-[0.95] tracking-[-0.025em] sm:text-[64px]">{gallery.title}</h1>
-            {gallery.photographer?.name && <p className="mt-4 text-sm text-white/70">Фотограф: {gallery.photographer.name}</p>}
+            <PhotographerCard photographer={photographer} />
           </div>
           <div className="flex flex-wrap items-center gap-3">
             {selectionAllowed && (
@@ -209,6 +228,7 @@ export default function ClientGalleryPage() {
                 {photo.url ? (
                   <button type="button" onClick={() => setPreviewId(photo.id)} className="absolute inset-0 block h-full w-full" aria-label={`Переглянути фото ${photo.filename}`}>
                     <img src={photo.thumbUrl || photo.url} alt={photo.filename} loading="lazy" draggable={false} onContextMenu={(e) => e.preventDefault()} className="h-full w-full select-none object-cover transition duration-700 group-hover:scale-105" />
+                    {watermarkOn && !photo.watermarked && <Watermark text={watermarkText} imageUrl={watermarkImage} opacity={watermarkOpacity} scale={0.55} className="pointer-events-none" />}
                   </button>
                 ) : (
                   <div className="grid h-full place-items-center text-xs text-white/50">{isPending(photo) ? "Обробляється…" : "Немає адреси фото"}</div>
@@ -222,13 +242,28 @@ export default function ClientGalleryPage() {
         </div>
       </section>
 
+      <footer className="bg-[#1a1311] px-5 py-10 text-white/55 sm:px-8">
+        <div className="mx-auto flex max-w-[1340px] flex-col gap-6 sm:flex-row sm:items-center">
+          <div className="space-y-2">
+            {photographer?.customFooter && <p className="text-sm text-white/70">{photographer.customFooter}</p>}
+            <p className="flex items-center gap-3 text-xs">Галерея створена на <Logo light href="/" /></p>
+          </div>
+          <nav aria-label="Юридична інформація" className="flex flex-wrap gap-x-6 gap-y-2 text-xs sm:ml-auto">
+            {LEGAL_PAGES.filter((l) => l.page !== "refund").map((l) => (
+              <a key={l.page} href={legalUrl(l.page)} target="_blank" rel="noopener noreferrer" className="transition hover:text-white">{l.label}</a>
+            ))}
+          </nav>
+        </div>
+      </footer>
+
       {previewIndex >= 0 && (
         <Lightbox
           photos={viewable}
           index={previewIndex}
           onChange={(i) => setPreviewId(viewable[i].id)}
           onClose={() => setPreviewId(null)}
-          watermarkText={null}
+          watermarkText={watermarkOn ? watermarkText : null}
+          watermarkImage={watermarkOn ? watermarkImage : null}
           renderActions={(photo) => (
             <>
               {selectionAllowed && <button onClick={() => toggleFavorite(photo as ClientPhoto)} disabled={!selectionOpen} aria-pressed={favorites.has(photo.id)} aria-label="Додати фото до обраних" className={`grid h-10 w-10 place-items-center rounded-full transition ${favorites.has(photo.id) ? "bg-[#711329] text-white" : "bg-white/10 hover:bg-white/20"}`}>

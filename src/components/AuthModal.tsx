@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { useAuth } from '../auth/AuthContext'
+import { legalUrl } from '../lib/legal'
 
 export type AuthMode = 'login' | 'register'
 
@@ -21,6 +22,7 @@ export default function AuthModal({ mode, onModeChange, onClose, onSuccess }: Pr
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const [agreed, setAgreed] = useState(false)
 
   const isRegister = mode === 'register'
 
@@ -101,6 +103,24 @@ export default function AuthModal({ mode, onModeChange, onClose, onSuccess }: Pr
             />
           </label>
 
+          {isRegister && (
+            <label className="flex cursor-pointer items-start gap-3 text-xs leading-5 text-[#6e605a]">
+              <input
+                type="checkbox"
+                checked={agreed}
+                onChange={(e) => setAgreed(e.target.checked)}
+                required
+                className="mt-0.5 h-4 w-4 shrink-0 accent-[#71142a]"
+              />
+              <span>
+                Я приймаю{' '}
+                <a href={legalUrl('terms')} target="_blank" rel="noopener noreferrer" className="font-semibold text-[#71142a] underline underline-offset-4">Умови використання</a>
+                {' '}та{' '}
+                <a href={legalUrl('privacy')} target="_blank" rel="noopener noreferrer" className="font-semibold text-[#71142a] underline underline-offset-4">Політику конфіденційності</a>
+              </span>
+            </label>
+          )}
+
           {error && (
             <p role="alert" className="rounded-xl bg-[#71142a]/10 px-4 py-3 text-sm text-[#71142a]">
               {error}
@@ -109,7 +129,7 @@ export default function AuthModal({ mode, onModeChange, onClose, onSuccess }: Pr
 
           <button
             type="submit"
-            disabled={submitting}
+            disabled={submitting || (isRegister && !agreed)}
             className="button w-full bg-[#561124] text-white disabled:opacity-60"
           >
             {submitting ? 'Зачекайте…' : isRegister ? 'Створити акаунт' : 'Увійти'}

@@ -7,6 +7,8 @@ import Logo from "../components/Logo";
 import { useAuth } from "../auth/AuthContext";
 import { billingApi } from "../api/billing";
 import type { CheckoutTier } from "../api/billing";
+import { LEGAL_PAGES, SUPPORT_EMAIL, legalUrl } from "../lib/legal";
+import usePageMeta from "../hooks/usePageMeta";
 
 const gallery = [
   ["https://images.unsplash.com/photo-1759054710581-c7745b02cb53?auto=format&fit=crop&w=700&q=85", "Молодята у вечірньому саду"],
@@ -27,6 +29,11 @@ const features = [
 ];
 
 export default function LandingPage() {
+  usePageMeta({
+    title: "Pixora — клієнтські галереї для фотографів",
+    description: "Хмарна платформа для фотографів: стильні клієнтські галереї, захист водяним знаком, відбір фото в 1 клік зі смартфона та експорт списку в Lightroom.",
+    path: "/",
+  });
   const [menuOpen, setMenuOpen] = useState(false);
   const [liked, setLiked] = useState(new Set([0, 3]));
   const { user, loading, logout } = useAuth();
@@ -203,7 +210,7 @@ export default function LandingPage() {
       </section>
 
       <footer className="bg-[#211a18] px-5 py-10 text-white/55 sm:px-8">
-        <div className="mx-auto flex max-w-[1240px] flex-col gap-7 sm:flex-row sm:items-center"><Logo light /><p className="text-xs sm:ml-auto">© 2026 PIXORA. Створено для фотографів.</p><div className="flex gap-6 text-xs"><a href="#">Умови</a><a href="#">Конфіденційність</a><a href="#">Підтримка</a></div></div>
+        <div className="mx-auto flex max-w-[1240px] flex-col gap-7 sm:flex-row sm:items-center"><Logo light /><p className="text-xs sm:ml-auto">© 2026 PIXORA. Створено для фотографів.</p><nav aria-label="Юридична інформація" className="flex flex-wrap gap-x-6 gap-y-2 text-xs">{LEGAL_PAGES.map((l) => <a key={l.page} href={legalUrl(l.page)} target="_blank" rel="noopener noreferrer" className="transition hover:text-white">{l.label}</a>)}<a href={`mailto:${SUPPORT_EMAIL}`} className="transition hover:text-white">Підтримка</a></nav></div>
       </footer>
 
       {authMode && (

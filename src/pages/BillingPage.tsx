@@ -4,6 +4,8 @@ import { billingApi } from "../api/billing";
 import type { BillingStatus, CheckoutTier, StorageUsage } from "../api/billing";
 import AppShell from "../components/AppShell";
 import Icon from "../components/Icon";
+import { legalUrl } from "../lib/legal";
+import usePageMeta from "../hooks/usePageMeta";
 
 const plans: { tier: CheckoutTier; name: string; price: string; items: string[] }[] = [
   { tier: "PRO", name: "Pro", price: "$15", items: ["100 GB сховища", "Необмежені галереї", "Власний логотип і водяний знак", "Оригінали та ZIP"] },
@@ -19,6 +21,7 @@ const formatBytes = (bytes: number) => {
 };
 
 export default function BillingPage() {
+  usePageMeta({ title: "Тариф і оплата", noindex: true });
   const [params, setParams] = useSearchParams();
   const [status, setStatus] = useState<BillingStatus | null>(null);
   const [storage, setStorage] = useState<StorageUsage | null>(null);
@@ -97,6 +100,9 @@ export default function BillingPage() {
               );
             })}
           </div>
+          <p className="text-center text-xs leading-5 text-[#766961]">
+            Оплата через Stripe. Перед оформленням ознайомтеся з <a href={legalUrl("refund")} target="_blank" rel="noopener noreferrer" className="font-semibold text-[#71142a] underline underline-offset-4">політикою повернення коштів</a> та <a href={legalUrl("terms")} target="_blank" rel="noopener noreferrer" className="font-semibold text-[#71142a] underline underline-offset-4">умовами використання</a>.
+          </p>
         </div>
       </section>
     </AppShell>

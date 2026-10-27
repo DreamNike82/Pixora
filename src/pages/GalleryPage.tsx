@@ -13,12 +13,14 @@ import Lightbox from "../components/Lightbox";
 import Watermark from "../components/Watermark";
 import GalleryInsights from "../components/gallery/GalleryInsights";
 import SelectionsPanel from "../components/gallery/SelectionsPanel";
+import usePageMeta from "../hooks/usePageMeta";
 
 type UploadItem = { id: string; name: string; status: "uploading" | "error"; error?: string };
 
 const MAX_PARALLEL = 3;
 
 export default function GalleryPage() {
+  usePageMeta({ title: "Галерея", noindex: true });
   const { id = "" } = useParams();
   const [gallery, setGallery] = useState<GalleryDetails | null>(null);
   const [photos, setPhotos] = useState<Photo[]>([]);

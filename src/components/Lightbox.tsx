@@ -77,7 +77,7 @@ export default function Lightbox({ photos, index, onChange, onClose, watermarkTe
           draggable={false}
           className="block max-h-[82vh] max-w-[92vw] select-none object-contain"
         />
-        {watermarkText && <Watermark text={watermarkText} imageUrl={watermarkImage} />}
+        {watermarkText && !photo.watermarked && <Watermark text={watermarkText} imageUrl={watermarkImage} />}
       </div>
     </div>
   );

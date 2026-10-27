@@ -9,6 +9,7 @@ export type Photo = {
   filename: string
   sectionId?: string | null
   status?: string // напр. PROCESSING / READY, якщо сервер віддає
+  watermarked?: boolean // сервер уже наклав знак у файл — поверх нього не малюємо другий
   rawKeys?: string[] // назви полів з відповіді — лише якщо адресу зображення знайти не вдалося (для діагностики)
 }
 
@@ -33,6 +34,7 @@ export function normalizePhoto(raw: Record<string, any>): Photo {
     filename: raw.filename ?? raw.fileName ?? raw.originalName ?? raw.originalFilename ?? raw.name ?? 'photo',
     sectionId: raw.sectionId ?? raw.section?.id ?? null,
     status: raw.status ?? raw.processingStatus ?? undefined,
+    watermarked: typeof raw.watermarkedUrl === 'string' && raw.watermarkedUrl ? true : undefined,
     rawKeys: url ? undefined : Object.keys(raw),
   }
 }

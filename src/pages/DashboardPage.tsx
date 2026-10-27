@@ -5,6 +5,7 @@ import { galleriesApi } from "../api/galleries";
 import type { GalleryListItem, GalleryStatus } from "../api/galleries";
 import AppShell from "../components/AppShell";
 import Icon from "../components/Icon";
+import usePageMeta from "../hooks/usePageMeta";
 
 const statusLabel: Record<GalleryStatus, string> = {
   DRAFT: "Чернетка",
@@ -16,6 +17,7 @@ const inputClass =
   "mt-2 w-full rounded-xl border border-[#d8c7bd] bg-white px-4 py-3 text-sm text-[#2a211e] outline-none transition focus:border-[#71142a] focus:ring-2 focus:ring-[#71142a]/20";
 
 export default function DashboardPage() {
+  usePageMeta({ title: "Мої галереї", noindex: true });
   const [galleries, setGalleries] = useState<GalleryListItem[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
