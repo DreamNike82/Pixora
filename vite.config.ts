@@ -1,21 +1,31 @@
-import { defineConfig, type HtmlTagDescriptor, type Plugin } from 'vite'
+import { defineConfig, loadEnv, type HtmlTagDescriptor, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import path from 'node:path'
 
 // Раніше читалося з ./.figma/make/site.json; тепер вбудовано, щоб збірка не залежала від папки .figma
 const siteConfiguration = {
+  title: 'Pixora — клієнтські галереї для фотографів',
   description:
-    'Enables photographers and clients to manage, select, and approve photo galleries with customizable limits, comments, and Lightroom export tools.',
-  robots: { index: false },
+    'Хмарна платформа для фотографів: стильні клієнтські галереї, захист водяним знаком, відбір фото в 1 клік зі смартфона та експорт списку в Lightroom.',
+  language: 'uk',
+  icons: { icon: '/favicon.png' },
+  // Індексація ввімкнена (раніше стояло index: false → весь сайт був закритий від пошуку).
+  // Приватні сторінки закриті окремо: X-Robots-Tag у vercel.json / netlify.toml та noindex у usePageMeta.
+  robots: { index: true },
   accessibility: { addBypassLinks: false, ignoreReducedMotion: false },
 }
+
+// Публічна адреса фронтенду для canonical, og:url, sitemap.xml. Змініть VITE_SITE_URL, коли підключите власний домен.
+const DEFAULT_SITE_URL = 'https://pixora-brown-omega.vercel.app'
 
 
 // Vite config — https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
   // .figma/make/deploy-preview passes `--mode development` for cached-preview builds.
   const emitSourcemaps = mode === 'development'
+  const env = loadEnv(mode, process.cwd(), 'VITE_')
+  const siteUrl = (process.env.VITE_SITE_URL || env.VITE_SITE_URL || DEFAULT_SITE_URL).replace(/\/+$/, '')
 
   return {
     base: process.env.FIGMA_PUBLIC_URL ? `${process.env.FIGMA_PUBLIC_URL}/` : '/',
@@ -23,10 +33,14 @@ export default defineConfig(({ mode }) => {
       sourcemap: emitSourcemaps ? 'inline' : false,
       minify: !emitSourcemaps,
     },
+    define: {
+      __SITE_URL__: JSON.stringify(siteUrl),
+    },
     plugins: [
 react(),
       tailwindcss(),
       figmaSiteConfiguration(siteConfiguration),
+      pixoraSeo({ siteUrl, title: siteConfiguration.title, description: siteConfiguration.description }),
       figmaErrorOverlayReplay(),
       figmaReactRefreshBoundaryFallback(),
       figmaMakeKitPlugin({ storiesGlob: '/src/**/*.stories.{ts,tsx,js,jsx}' }),
@@ -368,6 +382,118 @@ function figmaMakeKitPlugin(options: { storiesGlob: string | string[] }): Plugin
           next(err as Error)
         }
       })
+    },
+  }
+}
+
+
+/**
+ * SEO для статичного HTML (його читають боти соцмереж і пошуковики без JavaScript):
+ * canonical, Open Graph, Twitter Card, JSON-LD, а також robots.txt і sitemap.xml із правильним доменом.
+ * Метадані окремих сторінок SPA оновлює src/hooks/usePageMeta.ts.
+ */
+function pixoraSeo(opts: { siteUrl: string; title: string; description: string }): Plugin {
+  const { siteUrl, title, description } = opts
+  const image = `${siteUrl}/og-image.png`
+
+  const robotsTxt = [
+    'User-agent: *',
+    'Allow: /',
+    'Disallow: /api/',
+    'Disallow: /dashboard',
+    '',
+    `Sitemap: ${siteUrl}/sitemap.xml`,
+    '',
+  ].join('\n')
+
+  const sitemapXml = [
+    '<?xml version="1.0" encoding="UTF-8"?>',
+    '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+    `  <url><loc>${siteUrl}/</loc><lastmod>${new Date().toISOString().slice(0, 10)}</lastmod><changefreq>monthly</changefreq><priority>1.0</priority></url>`,
+    '</urlset>',
+    '',
+  ].join('\n')
+
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@graph': [
+      {
+        '@type': 'Organization',
+        '@id': `${siteUrl}/#organization`,
+        name: 'Pixora',
+        url: siteUrl,
+        logo: `${siteUrl}/favicon.png`,
+        email: 'support@pixora.app',
+      },
+      {
+        '@type': 'WebSite',
+        '@id': `${siteUrl}/#website`,
+        url: siteUrl,
+        name: 'Pixora',
+        inLanguage: 'uk',
+        publisher: { '@id': `${siteUrl}/#organization` },
+      },
+      {
+        '@type': 'SoftwareApplication',
+        name: 'Pixora',
+        url: siteUrl,
+        description,
+        applicationCategory: 'MultimediaApplication',
+        operatingSystem: 'Web',
+        inLanguage: 'uk',
+      },
+    ],
+  }
+
+  return {
+    name: 'pixora-seo',
+    configureServer(server) {
+      server.middlewares.use((req, res, next) => {
+        const path = req.url?.split('?')[0]
+        if (path === '/robots.txt') {
+          res.setHeader('Content-Type', 'text/plain; charset=utf-8')
+          return res.end(robotsTxt)
+        }
+        if (path === '/sitemap.xml') {
+          res.setHeader('Content-Type', 'application/xml; charset=utf-8')
+          return res.end(sitemapXml)
+        }
+        next()
+      })
+    },
+    generateBundle() {
+      this.emitFile({ type: 'asset', fileName: 'robots.txt', source: robotsTxt })
+      this.emitFile({ type: 'asset', fileName: 'sitemap.xml', source: sitemapXml })
+    },
+    transformIndexHtml: {
+      order: 'pre',
+      handler() {
+        const tags: HtmlTagDescriptor[] = [
+          { tag: 'meta', attrs: { name: 'robots', content: 'index, follow, max-image-preview:large' }, injectTo: 'head' },
+          { tag: 'meta', attrs: { name: 'theme-color', content: '#4A1525' }, injectTo: 'head' },
+          { tag: 'link', attrs: { rel: 'canonical', href: `${siteUrl}/` }, injectTo: 'head' },
+          { tag: 'link', attrs: { rel: 'apple-touch-icon', href: '/apple-touch-icon.png' }, injectTo: 'head' },
+          { tag: 'meta', attrs: { property: 'og:type', content: 'website' }, injectTo: 'head' },
+          { tag: 'meta', attrs: { property: 'og:site_name', content: 'Pixora' }, injectTo: 'head' },
+          { tag: 'meta', attrs: { property: 'og:locale', content: 'uk_UA' }, injectTo: 'head' },
+          { tag: 'meta', attrs: { property: 'og:url', content: `${siteUrl}/` }, injectTo: 'head' },
+          { tag: 'meta', attrs: { property: 'og:image', content: image }, injectTo: 'head' },
+          { tag: 'meta', attrs: { property: 'og:image:width', content: '1200' }, injectTo: 'head' },
+          { tag: 'meta', attrs: { property: 'og:image:height', content: '630' }, injectTo: 'head' },
+          { tag: 'meta', attrs: { property: 'og:image:alt', content: 'Pixora — клієнтські галереї для фотографів' }, injectTo: 'head' },
+          { tag: 'meta', attrs: { name: 'twitter:card', content: 'summary_large_image' }, injectTo: 'head' },
+          { tag: 'meta', attrs: { name: 'twitter:title', content: title }, injectTo: 'head' },
+          { tag: 'meta', attrs: { name: 'twitter:description', content: description }, injectTo: 'head' },
+          { tag: 'meta', attrs: { name: 'twitter:image', content: image }, injectTo: 'head' },
+          {
+            tag: 'script',
+            attrs: { type: 'application/ld+json' },
+            children: JSON.stringify(jsonLd).replace(/</g, '\\u003c'),
+            injectTo: 'head',
+          },
+        ]
+        return tags
+      },
     },
   }
 }
