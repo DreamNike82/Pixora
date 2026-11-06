@@ -1,4 +1,4 @@
-import { defineConfig, type HtmlTagDescriptor, type Plugin } from 'vite'
+import { defineConfig, loadEnv, type HtmlTagDescriptor, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import path from 'node:path'
@@ -7,7 +7,7 @@ import path from 'node:path'
 const siteConfiguration = {
   description:
     'Enables photographers and clients to manage, select, and approve photo galleries with customizable limits, comments, and Lightroom export tools.',
-  robots: { index: false },
+  robots: { index: true },
   accessibility: { addBypassLinks: false, ignoreReducedMotion: false },
 }
 
@@ -16,8 +16,15 @@ const siteConfiguration = {
 export default defineConfig(({ mode }) => {
   // .figma/make/deploy-preview passes `--mode development` for cached-preview builds.
   const emitSourcemaps = mode === 'development'
+  // Публічна адреса фронтенду для canonical / og:url (usePageMeta). Без «/» в кінці; може бути порожньою.
+  const env = loadEnv(mode, process.cwd(), '')
+  const siteUrl = (env.VITE_SITE_URL || process.env.URL || process.env.VERCEL_PROJECT_PRODUCTION_URL || '').replace(/\/+$/, '')
+  const siteUrlWithProtocol = siteUrl && !/^https?:\/\//.test(siteUrl) ? `https://${siteUrl}` : siteUrl
 
   return {
+    define: {
+      __SITE_URL__: JSON.stringify(siteUrlWithProtocol),
+    },
     base: process.env.FIGMA_PUBLIC_URL ? `${process.env.FIGMA_PUBLIC_URL}/` : '/',
     build: {
       sourcemap: emitSourcemaps ? 'inline' : false,

@@ -4,6 +4,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext";
 import Icon from "./Icon";
 import Logo from "./Logo";
+import { LEGAL_PAGES, SUPPORT_EMAIL, legalUrl } from "../lib/legal";
 
 type Props = {
   eyebrow: string;
@@ -85,7 +86,12 @@ export default function AppShell({ eyebrow, title, subtitle, actions, children }
         <div className="mx-auto flex max-w-[1240px] flex-col gap-7 sm:flex-row sm:items-center">
           <Logo light />
           <p className="text-xs sm:ml-auto">© 2026 PIXORA. Створено для фотографів.</p>
-          <div className="flex gap-6 text-xs"><a href="#">Умови</a><a href="#">Конфіденційність</a><a href="#">Підтримка</a></div>
+          <div className="flex gap-6 text-xs">
+            {LEGAL_PAGES.filter((l) => l.page === "terms" || l.page === "privacy").map((l) => (
+              <a key={l.page} href={legalUrl(l.page)} target="_blank" rel="noreferrer">{l.label}</a>
+            ))}
+            <a href={`mailto:${SUPPORT_EMAIL}`}>Підтримка</a>
+          </div>
         </div>
       </footer>
     </div>
